@@ -26,48 +26,111 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
     const db = client.db("smart_db");
+
+    // products collection
     const productsCollection = db.collection("products");
-    // GET API to fetch products
+
+    // bids collection
+    const bidsCollection = db.collection("bids");
+
+    // API Endpoints
+    // Query to find all products or by email---------------------------------------------------------------------------------
     app.get("/products", async (req, res) => {
-      const cursor = productsCollection.find();
-      const result = await cursor.toArray();
+      let query = {};
+      if (req.query.email) {
+        query.email = req.query.email;
+      }
+      const result = await productsCollection.find(query).toArray();
       res.send(result);
     });
-
-    // GET API to fetch a single product by ID
+    // GET API to fetch a single product by ID----------------------------------------------------------------------------
     app.get("/products/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
+      const query = { _id: id };
       const result = await productsCollection.findOne(query);
       res.send(result);
     });
-    // POST API to add a product
+    // POST API to add a product-------------------------------------------------------------------------------------
     app.post("/products", async (req, res) => {
       const newProduct = req.body;
       const result = await productsCollection.insertOne(newProduct);
       res.send(result);
     });
-    // Delete API to remove a product by ID
+    // Delete API to remove a product by ID----------------------------------------------------------------------------
     app.delete("/products/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
+      const query = { _id: id };
       const result = await productsCollection.deleteOne(query);
       res.send(result);
     });
-    // PATCH API to update a product by ID
+    // PATCH API to update a product by ID-------------------------------------------------------------
     app.patch("/products/:id", async (req, res) => {
       const id = req.params.id;
       const updatedProduct = req.body;
-      const filter = { _id: new ObjectId(id) };
+      const filter = { _id: id };
       const updateDoc = {
         $set: {
-          name: updatedProduct.name,
-          price: updatedProduct.price,
+          status: updatedProduct.status,
         },
       };
       const result = await productsCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
+    // PUT API to update a product by ID-------------------------------------------------------------
+    app.put("/products/:id", async (req, res) => {
+      const id = req.params.id; // product ID from URL
+      const updatedProduct = req.body; // full product object
+
+      if (!updatedProduct || Object.keys(updatedProduct).length === 0) {
+        return res
+          .status(400)
+          .send({ message: "Updated product data is required" });
+      }
+
+      try {
+        const filter = { _id: id }; // string _id
+        const options = { upsert: false }; // don't create a new product if not exists
+
+        // Replace the entire document
+        const result = await productsCollection.replaceOne(
+          filter,
+          updatedProduct,
+          options
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Product not found" });
+        }
+
+        res.send({ message: "Product fully updated", result });
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: "Server error" });
+      }
+    });
+
+    // Bids api-----------------------------Bids api---------------------------------------------
+    // ----------------Get all bid------------------------------------------------------------
+    app.get("/bids", async (req, res) => {
+      const result = await bidsCollection.find().toArray();
+      res.send(result);
+    });
+
+    // -----------------POST Bid----------------
+    app.post("/bids", async (req, res) => {
+      const newBid = req.body;
+      const result = await bidsCollection.insertOne(newBid);
+      res.send(result);
+    });
+
+    // Delete API to remove a bid by ID----------------------------------------------------------------------------
+    app.delete("/bids/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: id };
+      const result = await bidsCollection.deleteOne(query);
+      res.send(result);
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
