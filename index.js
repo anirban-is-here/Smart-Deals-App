@@ -33,12 +33,32 @@ async function run() {
     // bids collection
     const bidsCollection = db.collection("bids");
 
+    //user collection
+    const usersCollection = db.collection("users");
+    // get all users
+    app.get("/users", async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+    // add a user
+    app.post("/users", async (req, res) => {
+      const newUser = req.body;
+      const query = { email: newUser.email };
+      const existingUser = await usersCollection.findOne(query);
+      if (existingUser) {
+        return res.status(409).send({ message: "User already exists" });
+      }
+      const result = await usersCollection.insertOne(newUser);
+      res.send(result);
+    });
+
     // API Endpoints
     // Query to find all products or by email---------------------------------------------------------------------------------
     app.get("/products", async (req, res) => {
       let query = {};
       if (req.query.email) {
         query.email = req.query.email;
+        console.log(query.email);
       }
       const result = await productsCollection.find(query).toArray();
       res.send(result);
@@ -46,10 +66,21 @@ async function run() {
     // GET API to fetch a single product by ID----------------------------------------------------------------------------
     app.get("/products/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: id };
+
+      const query = { _id: new ObjectId(id) };
       const result = await productsCollection.findOne(query);
       res.send(result);
     });
+
+    // get product by email
+    // app.get("/myProducts/email/:email", async (req, res) => {
+    //   const mail = req.params.email;
+
+    //   const query = { email: mail };
+    //   const result = await productsCollection.find(query).toArray();
+    //   console.log(result.length);
+    //   res.send(result);
+    // });
     // POST API to add a product-------------------------------------------------------------------------------------
     app.post("/products", async (req, res) => {
       const newProduct = req.body;
